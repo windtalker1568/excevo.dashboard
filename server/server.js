@@ -425,6 +425,225 @@ registerImport('pip', ['pip', 'pips'], [
   };
 });
 
+function processPeopleRows(rows) {
+  const db = getDb();
+  let processed = 0, added = 0, updated = 0, unchanged = 0, rejected = 0;
+  const errors = [];
+  for (const { raw, norm } of rows) {
+    processed++;
+    const advisorVal = norm['advisor'];
+    const teamLeaderVal = norm['team leader'];
+    if (!advisorVal || !teamLeaderVal) {
+      rejected++;
+      errors.push(`Row ${processed}: missing Advisor or Team Leader`);
+      continue;
+    }
+    const existingIdx = db.people.findIndex(p => normalize(p.advisor) === normalize(advisorVal));
+    const record = {
+      id: existingIdx >= 0 ? db.people[existingIdx].id : `${Date.now()}-${processed}`,
+      advisor: String(advisorVal).trim(),
+      teamLeader: String(teamLeaderVal).trim(),
+      importedAt: new Date().toISOString()
+    };
+    if (existingIdx >= 0) {
+      const existing = db.people[existingIdx];
+      if (normalize(existing.teamLeader) === normalize(record.teamLeader)) {
+        unchanged++;
+      } else {
+        updated++;
+        db.people[existingIdx] = record;
+      }
+    } else {
+      added++;
+      db.people.push(record);
+    }
+  }
+  return { success: true, message: 'People import complete', recordsFound: processed, added, updated, unchanged, rejected, errors: errors.slice(0, 10) };
+}
+
+function processEfficiencyRows(rows) {
+  const db = getDb();
+  let processed = 0, added = 0, updated = 0, unchanged = 0, rejected = 0;
+  const errors = [];
+  for (const { raw, norm } of rows) {
+    processed++;
+    const dateVal = parseDate(norm['date']);
+    const advisorVal = norm['advisor'];
+    const teamLeaderVal = norm['team leader'];
+    const ephVal = parseNumber(norm['eph']);
+    const sphVal = parseNumber(norm['sph']);
+    if (!dateVal || !advisorVal) {
+      rejected++;
+      errors.push(`Row ${processed}: missing Date or Advisor`);
+      continue;
+    }
+    if ((ephVal === null || ephVal === undefined) && (sphVal === null || sphVal === undefined)) {
+      rejected++;
+      errors.push(`Row ${processed}: missing EPH and SPH`);
+      continue;
+    }
+    const existingIdx = db.efficiency.findIndex(e => e.date === dateVal && normalize(e.advisor) === normalize(advisorVal));
+    const record = {
+      id: existingIdx >= 0 ? db.efficiency[existingIdx].id : `${Date.now()}-${processed}`,
+      date: dateVal,
+      advisor: String(advisorVal).trim(),
+      teamLeader: String(teamLeaderVal || '').trim(),
+      eph: ephVal,
+      sph: sphVal,
+      importedAt: new Date().toISOString()
+    };
+    if (existingIdx >= 0) {
+      const existing = db.efficiency[existingIdx];
+      if (existing.eph === record.eph && existing.sph === record.sph && normalize(existing.teamLeader) === normalize(record.teamLeader)) {
+        unchanged++;
+      } else {
+        updated++;
+        db.efficiency[existingIdx] = record;
+      }
+    } else {
+      added++;
+      db.efficiency.push(record);
+    }
+  }
+  return { success: true, message: 'Efficiency import complete', recordsFound: processed, added, updated, unchanged, rejected, errors: errors.slice(0, 10) };
+}
+
+function processQualityRows(rows) {
+  const db = getDb();
+  let processed = 0, added = 0, updated = 0, unchanged = 0, rejected = 0;
+  const errors = [];
+  for (const { raw, norm } of rows) {
+    processed++;
+    const weekVal = parseDate(columnAliases(norm, ['week', 'week commencing', 'week start', 'weekstart']));
+    const advisorVal = norm['advisor'];
+    const teamLeaderVal = norm['team leader'];
+    const trueScoreVal = parseIntValue(norm['true score']);
+    const potentialScoreVal = parseIntValue(norm['potential score']);
+    if (!weekVal || !advisorVal) {
+      rejected++;
+      errors.push(`Row ${processed}: missing Week or Advisor`);
+      continue;
+    }
+    if (trueScoreVal === null || potentialScoreVal === null) {
+      rejected++;
+      errors.push(`Row ${processed}: missing True Score or Potential Score`);
+      continue;
+    }
+    if (trueScoreVal < 0 || trueScoreVal > 100 || potentialScoreVal < 0 || potentialScoreVal > 100) {
+      rejected++;
+      errors.push(`Row ${processed}: invalid Quality scores (must be 0-100)`);
+      continue;
+    }
+    const existingIdx = db.quality.findIndex(q => q.weekCommencing === weekVal && normalize(q.advisor) === normalize(advisorVal));
+    const record = {
+      id: existingIdx >= 0 ? db.quality[existingIdx].id : `${Date.now()}-${processed}`,
+      weekCommencing: weekVal,
+      advisor: String(advisorVal).trim(),
+      teamLeader: String(teamLeaderVal || '').trim(),
+      trueScore: trueScoreVal,
+      potentialScore: potentialScoreVal,
+      importedAt: new Date().toISOString()
+    };
+    if (existingIdx >= 0) {
+      const existing = db.quality[existingIdx];
+      if (existing.trueScore === record.trueScore && existing.potentialScore === record.potentialScore && normalize(existing.teamLeader) === normalize(record.teamLeader)) {
+        unchanged++;
+      } else {
+        updated++;
+        db.quality[existingIdx] = record;
+      }
+    } else {
+      added++;
+      db.quality.push(record);
+    }
+  }
+  return { success: true, message: 'Quality import complete', recordsFound: processed, added, updated, unchanged, rejected, errors: errors.slice(0, 10) };
+}
+
+function processPipRows(rows) {
+  const db = getDb();
+  let processed = 0, added = 0, updated = 0, unchanged = 0, rejected = 0;
+  const errors = [];
+  for (const { raw, norm } of rows) {
+    processed++;
+    const advisorVal = norm['advisor'];
+    const teamLeaderVal = norm['team leader'];
+    const dateAddedVal = parseDate(norm['date added']);
+    const reasonVal = norm['reason for pip'];
+    const weeksVal = parseIntValue(norm['pip weeks']);
+    if (!advisorVal || !reasonVal) {
+      rejected++;
+      errors.push(`Row ${processed}: missing Advisor or Reason for PIP`);
+      continue;
+    }
+    const existingIdx = db.pips.findIndex(p => normalize(p.advisor) === normalize(advisorVal));
+    const record = {
+      id: existingIdx >= 0 ? db.pips[existingIdx].id : `${Date.now()}-${processed}`,
+      advisor: String(advisorVal).trim(),
+      teamLeader: String(teamLeaderVal || '').trim(),
+      dateAdded: dateAddedVal,
+      reason: String(reasonVal).trim(),
+      pipWeeks: weeksVal,
+      importedAt: new Date().toISOString()
+    };
+    if (existingIdx >= 0) {
+      const existing = db.pips[existingIdx];
+      if (existing.reason === record.reason && existing.pipWeeks === record.pipWeeks && existing.dateAdded === record.dateAdded) {
+        unchanged++;
+      } else {
+        updated++;
+        db.pips[existingIdx] = record;
+      }
+    } else {
+      added++;
+      db.pips.push(record);
+    }
+  }
+  return { success: true, message: 'PIP import complete', recordsFound: processed, added, updated, unchanged, rejected, errors: errors.slice(0, 10) };
+}
+
+app.post('/api/import/data', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  try {
+    const workbook = xlsx.readFile(req.file.path, { cellDates: true, dateNF: 'yyyy-mm-dd' });
+    const db = getDb();
+    db.people = [];
+    db.efficiency = [];
+    db.quality = [];
+    db.pips = [];
+    const results = {};
+    const plan = [
+      { type: 'people', names: ['people'], processor: processPeopleRows },
+      { type: 'efficiency', names: ['efficiency', 'sph_eph', 'spheph'], processor: processEfficiencyRows },
+      { type: 'quality', names: ['quality'], processor: processQualityRows },
+      { type: 'pip', names: ['pip', 'pips'], processor: processPipRows }
+    ];
+    for (const { type, names, processor } of plan) {
+      const sheet = findSheet(workbook, names);
+      if (sheet) {
+        const rows = sheetToRows(sheet);
+        results[type] = processor(rows, req.file.originalname);
+      } else {
+        results[type] = { success: false, message: `Sheet not found for ${type}`, recordsFound: 0, added: 0, updated: 0, unchanged: 0, rejected: 0 };
+      }
+    }
+    persist();
+    const summary = { success: true, message: 'Data import complete', results };
+    getDb().imports.unshift({
+      id: Date.now().toString(),
+      type: 'data',
+      filename: req.file.originalname,
+      timestamp: new Date().toISOString(),
+      summary
+    });
+    persist();
+    res.json(summary);
+  } catch (err) {
+    console.error('Import error:', err);
+    res.status(500).json({ error: err.message || 'Import failed' });
+  }
+});
+
 app.post('/api/refresh/:type', (req, res) => {
   const { type } = req.params;
   const db = getDb();
