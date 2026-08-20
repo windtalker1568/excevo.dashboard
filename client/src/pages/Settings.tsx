@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { postFile } from '../api';
+import { fetchJson, postFile } from '../api';
 
 interface ImportSummary {
   success: boolean;
@@ -25,10 +25,20 @@ interface DataImportSummary {
   };
 }
 
+interface SyncStatus {
+  people: number;
+  advisorsCount: number;
+  quality: number;
+  efficiency: number;
+  pips: number;
+}
+
 export default function Settings() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [summary, setSummary] = useState<DataImportSummary | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sync, setSync] = useState<SyncStatus | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   const onImport = async () => {
     const file = fileRef.current?.files?.[0];
@@ -41,6 +51,18 @@ export default function Settings() {
       setSummary({ success: false, message: e.message, results: {} });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetchJson('/api/sync');
+      setSync(res);
+    } catch (e: any) {
+      setSync({ people: 0, advisorsCount: 0, quality: 0, efficiency: 0, pips: 0 });
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -57,6 +79,7 @@ export default function Settings() {
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
           <input ref={fileRef} type="file" accept=".xlsx,.xls" />
           <button className="btn" onClick={onImport} disabled={loading}>{loading ? 'Importing...' : 'Import Data'}</button>
+          <button className="btn btn-secondary" onClick={onSync} disabled={syncing}>{syncing ? 'Syncing...' : 'Sync Data'}</button>
         </div>
         {summary && (
           <>
@@ -86,6 +109,15 @@ export default function Settings() {
               <p className="text-red" style={{ marginTop: 12 }}>{summary.message}</p>
             )}
           </>
+        )}
+        {sync && (
+          <div className="import-meta" style={{ marginTop: 16 }}>
+            <div className="meta-item"><div className="label">People</div><div className="number">{sync.people}</div></div>
+            <div className="meta-item"><div className="label">Advisors</div><div className="number">{sync.advisorsCount}</div></div>
+            <div className="meta-item"><div className="label">Efficiency Rows</div><div className="number">{sync.efficiency}</div></div>
+            <div className="meta-item"><div className="label">Quality Rows</div><div className="number">{sync.quality}</div></div>
+            <div className="meta-item"><div className="label">PIPs</div><div className="number">{sync.pips}</div></div>
+          </div>
         )}
       </div>
     </div>
