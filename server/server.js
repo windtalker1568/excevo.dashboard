@@ -121,6 +121,8 @@ function activeAdvisors(db, filters = {}) {
   const activeSet = new Set();
   for (const e of db.efficiency) {
     if ((e.eph !== null && e.eph !== undefined && e.eph !== '') || (e.sph !== null && e.sph !== undefined && e.sph !== '')) {
+      if (filters.dateFrom && e.date < filters.dateFrom) continue;
+      if (filters.dateTo && e.date > filters.dateTo) continue;
       activeSet.add(normalize(e.advisor));
     }
   }
@@ -652,6 +654,22 @@ app.post('/api/refresh/:type', (req, res) => {
   }
   // Refresh is a no-op for JSON DB; views are computed on demand
   res.json({ success: true, message: `${type} refreshed` });
+});
+
+app.get('/api/sync', (req, res) => {
+  const db = getDb();
+  const teamLeaders = [...new Set(db.people.map(p => p.teamLeader).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const advisors = [...new Set(db.people.map(p => p.advisor).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  res.json({
+    success: true,
+    people: db.people.length,
+    teamLeaders,
+    advisors,
+    advisorsCount: advisors.length,
+    quality: db.quality.length,
+    efficiency: db.efficiency.length,
+    pips: db.pips.length
+  });
 });
 
 app.get('/api/imports', (req, res) => {

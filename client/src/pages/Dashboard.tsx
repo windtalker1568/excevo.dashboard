@@ -12,30 +12,22 @@ function formatNumber(n: number | null, digits = 1) {
 }
 
 export default function Dashboard() {
-  const [filters, setFilters] = useState({ dateFrom: '', dateTo: '', tenure: '', teamLeader: '', advisor: '' });
-  const [appliedFilters, setAppliedFilters] = useState(filters);
+  const [filters, setFilters] = useState({ dateFrom: '', dateTo: '' });
   const [data, setData] = useState<DashboardData | null>(null);
-  const [options, setOptions] = useState<{ teamLeaders: string[]; advisors: string[] }>({ teamLeaders: [], advisors: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchJson('/api/filters/options').then(setOptions).catch(() => setOptions({ teamLeaders: [], advisors: [] }));
-  }, []);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
     const params = new URLSearchParams();
-    if (appliedFilters.dateFrom) params.set('dateFrom', appliedFilters.dateFrom);
-    if (appliedFilters.dateTo) params.set('dateTo', appliedFilters.dateTo);
-    if (appliedFilters.teamLeader) params.set('teamLeader', appliedFilters.teamLeader);
-    if (appliedFilters.advisor) params.set('advisor', appliedFilters.advisor);
+    if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+    if (filters.dateTo) params.set('dateTo', filters.dateTo);
     fetchJson(`/api/dashboard?${params.toString()}`)
       .then(setData)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [appliedFilters]);
+  }, [filters]);
 
   const trendData = useMemo(() => data?.ephSphTrend || [], [data]);
   const qualityTrend = useMemo(() => data?.qualityTrend || [], [data]);
@@ -64,21 +56,6 @@ export default function Dashboard() {
           <label>Date To</label>
           <input type="date" value={filters.dateTo} onChange={e => setFilters({ ...filters, dateTo: e.target.value })} />
         </div>
-        <div className="filter-group">
-          <label>Team Leader</label>
-          <select value={filters.teamLeader} onChange={e => setFilters({ ...filters, teamLeader: e.target.value })}>
-            <option value="">All</option>
-            {options.teamLeaders.map(tl => <option key={tl} value={tl}>{tl}</option>)}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label>Advisor</label>
-          <select value={filters.advisor} onChange={e => setFilters({ ...filters, advisor: e.target.value })}>
-            <option value="">All</option>
-            {options.advisors.map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
-        </div>
-        <button className="btn" onClick={() => setAppliedFilters(filters)}>Apply Filters</button>
       </div>
 
       {loading && <div className="empty">Loading...</div>}
@@ -153,32 +130,6 @@ export default function Dashboard() {
                 </PieChart>
               </ResponsiveContainer>
             </div>
-          </div>
-
-          <h3 className="section-title">Top People</h3>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Rank</th><th>Advisor</th><th>Team Leader</th><th>EPH</th><th>SPH</th><th>True Score</th><th>Potential Score</th><th>PIP Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.topPeople.length === 0 && <tr><td colSpan={8} className="empty">No data</td></tr>}
-                {data.topPeople.map((p, i) => (
-                  <tr key={i}>
-                    <td>{p.rank}</td>
-                    <td>{p.advisor}</td>
-                    <td>{p.teamLeader}</td>
-                    <td>{formatNumber(p.eph)}</td>
-                    <td>{formatNumber(p.sph)}</td>
-                    <td className="text-cyan">{p.trueScore}</td>
-                    <td className="text-orange">{p.potentialScore}</td>
-                    <td>{p.pipStatus}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
 
           <h3 className="section-title">Recent Quality</h3>
