@@ -697,13 +697,13 @@ app.get('/api/quality/weeks', (req, res) => {
 
 // ---------- Leaderboard ----------
 
-app.get('/api/leaderboard', (req, res) => {
-  const db = getDb();
-  const week = req.query.week || [...new Set(db.quality.map(q => q.weekCommencing))].sort().pop();
-  if (!week) return res.json({ week: null, bestEph: [], bestSph: [], highestQuality: [] });
+function computeLeaderboard(db, requestedWeek) {
+  const allWeeks = [...new Set(db.quality.map(q => q.weekCommencing))].sort();
+  const week = requestedWeek || allWeeks.pop();
+  if (!week) return { week: null, bestEph: [], bestSph: [], highestQuality: [] };
 
   const qualityWeek = db.quality.filter(q => q.weekCommencing === week);
-  const efficiencyWeek = db.efficiency.filter(e => e.date >= week); // within the week starting from that date
+  const efficiencyWeek = db.efficiency.filter(e => e.date >= week && e.date < addDays(week, 7));
 
   const advisorQuality = new Map();
   for (const q of qualityWeek) advisorQuality.set(normalize(q.advisor), q);
@@ -734,12 +734,22 @@ app.get('/api/leaderboard', (req, res) => {
     .sort((a, b) => b.trueScore - a.trueScore)
     .slice(0, 10);
 
-  res.json({
+  return {
     week,
     bestEph: bestEph.sort((a, b) => b.eph - a.eph).slice(0, 10).map((x, i) => ({ rank: i + 1, ...x })),
     bestSph: bestSph.sort((a, b) => b.sph - a.sph).slice(0, 10).map((x, i) => ({ rank: i + 1, ...x })),
     highestQuality: highestQuality.map((x, i) => ({ rank: i + 1, ...x }))
-  });
+  };
+}
+
+function addDays(iso, n) {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().split('T')[0];
+}
+
+app.get('/api/leaderboard', (req, res) => {
+  res.json(computeLeaderboard(getDb(), req.query.week));
 });
 
 // ---------- Export ----------
@@ -780,14 +790,9 @@ app.get('/api/export/:type', async (req, res) => {
     }).map(p => ({ Advisor: p.advisor, 'Team Leader': p.teamLeader, 'Date Added': p.dateAdded, 'Reason for PIP': p.reason, 'PIP Weeks': p.pipWeeks }));
     columns = ['Advisor', 'Team Leader', 'Date Added', 'Reason for PIP', 'PIP Weeks'];
   } else if (type === 'leaderboard') {
-    const week = req.query.week;
-    // compute leaderboard and export
-    const qualityWeek = db.quality.filter(q => !week || q.weekCommencing === week);
-    data = qualityWeek
-      .filter(q => q.trueScore > 60)
-      .sort((a, b) => b.trueScore - a.trueScore)
-      .slice(0, 10)
-      .map((q, i) => ({ Rank: i + 1, Advisor: q.advisor, 'Team Leader': q.teamLeader, 'True Score': q.trueScore }));
+    const week = req.query.week || req.query.weekCommencing;
+    const board = computeLeaderboard(db, week);
+    data = (board.highestQuality || []).map(x => ({ Rank: x.rank, Advisor: x.advisor, 'Team Leader': x.teamLeader, 'True Score': x.trueScore }));
     columns = ['Rank', 'Advisor', 'Team Leader', 'True Score'];
   } else {
     return res.status(400).json({ error: 'Invalid export type' });
@@ -823,9 +828,9 @@ app.get('/api/export/preview/:type', (req, res) => {
       return true;
     });
   } else if (type === 'leaderboard') {
-    // leaderboard preview handled separately or return top 10
-    const week = req.query.week;
-    data = db.quality.filter(q => (!week || q.weekCommencing === week) && q.trueScore > 60).sort((a, b) => b.trueScore - a.trueScore).slice(0, 10);
+    const week = req.query.week || req.query.weekCommencing;
+    const board = computeLeaderboard(db, week);
+    data = board.highestQuality || [];
   }
   res.json({ count: data.length, data: data.slice(0, 50) });
 });

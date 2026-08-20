@@ -5,7 +5,7 @@ const dataTypes = ['people', 'efficiency', 'quality', 'pips', 'leaderboard'];
 
 export default function Export() {
   const [type, setType] = useState('people');
-  const [filters, setFilters] = useState<any>({ dateFrom: '', dateTo: '', weekCommencing: '', teamLeader: '', advisor: '' });
+  const [filters, setFilters] = useState<any>({ dateFrom: '', dateTo: '', weekCommencing: '', week: '', teamLeader: '', advisor: '' });
   const [options, setOptions] = useState<{ teamLeaders: string[]; advisors: string[]; weeks: string[] }>({ teamLeaders: [], advisors: [], weeks: [] });
   const [preview, setPreview] = useState<any[]>([]);
   const [count, setCount] = useState(0);
@@ -46,7 +46,7 @@ export default function Export() {
     if (type === 'people' || type === 'pips') return ['teamLeader', 'advisor'];
     if (type === 'efficiency') return ['dateFrom', 'dateTo', 'teamLeader', 'advisor'];
     if (type === 'quality') return ['weekCommencing', 'teamLeader', 'advisor'];
-    if (type === 'leaderboard') return ['weekCommencing'];
+    if (type === 'leaderboard') return ['week'];
     return [];
   };
 
@@ -71,6 +71,15 @@ export default function Export() {
             <label>Week Commencing</label>
             <select value={filters.weekCommencing} onChange={e => setFilters({ ...filters, weekCommencing: e.target.value })}>
               <option value="">All Weeks</option>
+              {options.weeks.map(w => <option key={w} value={w}>{w}</option>)}
+            </select>
+          </div>
+        )}
+        {relevantFilters().includes('week') && (
+          <div className="filter-group">
+            <label>Week</label>
+            <select value={filters.week} onChange={e => setFilters({ ...filters, week: e.target.value })}>
+              <option value="">Select Week</option>
               {options.weeks.map(w => <option key={w} value={w}>{w}</option>)}
             </select>
           </div>
