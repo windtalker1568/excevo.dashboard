@@ -16,7 +16,7 @@ Performance analytics and reporting application for Advisors and Team Leaders.
 
 - React (Vite + TypeScript)
 - Node.js + Express
-- JSON-backed persistent data store
+- Supabase-backed persistent data store (with a local JSON fallback for development)
 - `xlsx` for Excel import/export
 - `recharts` for charts
 
@@ -42,6 +42,15 @@ The expected sheet names and columns are:
 - `Efficiency` (or `SPH_EPH`) sheet: `Date`, `Advisor`, `Team Leader`, `EPH`, `SPH`
 - `Quality` sheet: `Week` / `Week Commencing` / `Week Start`, `Advisor`, `Team Leader`, `True Score`, `Potential Score`
 - `PIP` sheet: `Advisor`, `Team Leader`, `Date Added`, `Reason for PIP`, `PIP Weeks`
+
+## Supabase setup
+
+1. Create a Supabase project.
+2. In its **SQL Editor**, run [`supabase/schema.sql`](supabase/schema.sql).
+3. Copy `.env.example` to `.env` and add the Project URL and **service_role** key from **Project Settings > API**.
+4. In Vercel, add the same `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` environment variables, then redeploy.
+
+The service-role key is used by the Express API only; do not add it to client-side Vite environment variables. The existing Excel import endpoint saves its resulting data to Supabase, so it persists across deployments and serverless restarts.
 
 ## Development
 

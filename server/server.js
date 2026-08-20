@@ -4,13 +4,22 @@ const multer = require('multer');
 const xlsx = require('xlsx');
 const fs = require('fs');
 const path = require('path');
-const { getDb, persist } = require('./db');
+const { getDb, persist, ready } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use(async (req, res, next) => {
+  try {
+    await ready();
+    next();
+  } catch (err) {
+    console.error('Database initialization error:', err.message);
+    res.status(503).json({ error: 'Database is temporarily unavailable' });
+  }
+});
 
 const UPLOAD_DIR = process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -168,7 +177,7 @@ function isPip(advisor, db) {
 // ---------- Import Routes ----------
 
 function registerImport(type, possibleSheetNames, requiredColumns, processor) {
-  app.post(`/api/import/${type}`, upload.single('file'), (req, res) => {
+  app.post(`/api/import/${type}`, upload.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     try {
       const workbook = xlsx.readFile(req.file.path, { cellDates: true, dateNF: 'yyyy-mm-dd' });
@@ -178,7 +187,7 @@ function registerImport(type, possibleSheetNames, requiredColumns, processor) {
       }
       const rows = sheetToRows(sheet);
       const result = processor(rows, req.file.originalname);
-      persist();
+      await persist();
       getDb().imports.unshift({
         id: Date.now().toString(),
         type,
@@ -186,7 +195,7 @@ function registerImport(type, possibleSheetNames, requiredColumns, processor) {
         timestamp: new Date().toISOString(),
         summary: result
       });
-      persist();
+      await persist();
       res.json(result);
     } catch (err) {
       console.error('Import error:', err);
@@ -604,7 +613,7 @@ function processPipRows(rows) {
   return { success: true, message: 'PIP import complete', recordsFound: processed, added, updated, unchanged, rejected, errors: errors.slice(0, 10) };
 }
 
-app.post('/api/import/data', upload.single('file'), (req, res) => {
+app.post('/api/import/data', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   try {
     const workbook = xlsx.readFile(req.file.path, { cellDates: true, dateNF: 'yyyy-mm-dd' });
@@ -629,7 +638,7 @@ app.post('/api/import/data', upload.single('file'), (req, res) => {
         results[type] = { success: false, message: `Sheet not found for ${type}`, recordsFound: 0, added: 0, updated: 0, unchanged: 0, rejected: 0 };
       }
     }
-    persist();
+    await persist();
     const summary = { success: true, message: 'Data import complete', results };
     getDb().imports.unshift({
       id: Date.now().toString(),
@@ -638,7 +647,7 @@ app.post('/api/import/data', upload.single('file'), (req, res) => {
       timestamp: new Date().toISOString(),
       summary
     });
-    persist();
+    await persist();
     res.json(summary);
   } catch (err) {
     console.error('Import error:', err);
