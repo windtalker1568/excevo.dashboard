@@ -16,8 +16,9 @@ function average(values: Array<number | null | undefined>) {
 
 export default function Quality() {
   const [teamLeader, setTeamLeader] = useState('');
+  const [advisor, setAdvisor] = useState('');
   const [week, setWeek] = useState('');
-  const [options, setOptions] = useState<{ teamLeaders: string[]; weeks: string[] }>({ teamLeaders: [], weeks: [] });
+  const [options, setOptions] = useState<{ teamLeaders: string[]; weeks: string[]; advisors: string[] }>({ teamLeaders: [], weeks: [], advisors: [] });
   const [records, setRecords] = useState<QualityRecord[]>([]);
   const [trend, setTrend] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,13 +26,14 @@ export default function Quality() {
 
   useEffect(() => {
     fetchJson('/api/filters/options')
-      .then((result: { teamLeaders?: string[]; weeks?: string[] }) => {
-        const teamLeaders = result.teamLeaders || [];
+      .then((result: { teamLeaders?: string[]; weeks?: string[]; advisors?: string[] }) => {
+        const teamLeaders = (result.teamLeaders || []).filter((name): name is string => !!name && !!String(name).trim());
         const weeks = (result.weeks || []).slice().sort();
-        setOptions({ teamLeaders, weeks });
-        if (weeks.length) setWeek(weeks[weeks.length - 1]);
+        const advisors = (result.advisors || []).filter((name): name is string => !!name && !!String(name).trim());
+        setOptions({ teamLeaders, weeks, advisors });
+        if (weeks.length && !week) setWeek(weeks[weeks.length - 1]);
       })
-      .catch(() => setOptions({ teamLeaders: [], weeks: [] }));
+      .catch(() => setOptions({ teamLeaders: [], weeks: [], advisors: [] }));
   }, []);
 
   useEffect(() => {
@@ -39,6 +41,7 @@ export default function Quality() {
     setError(null);
     const params = new URLSearchParams();
     if (teamLeader) params.set('teamLeader', teamLeader);
+    if (advisor) params.set('advisor', advisor);
 
     Promise.all([
       fetchJson(`/api/quality?${params.toString()}`),
@@ -47,7 +50,21 @@ export default function Quality() {
       .then(([r, t]) => { setRecords(r); setTrend(t); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [teamLeader]);
+  }, [teamLeader, advisor]);
+
+  const availableAdvisors = useMemo(() => {
+    if (!teamLeader) return [];
+    return Array.from(new Set((options.advisors || []).filter(advisorName => {
+      const recordMatch = records.some(record => record.teamLeader === teamLeader && record.advisor === advisorName);
+      return recordMatch;
+    }))).sort((a, b) => a.localeCompare(b));
+  }, [options.advisors, records, teamLeader]);
+
+  useEffect(() => {
+    if (teamLeader && advisor && !availableAdvisors.includes(advisor)) {
+      setAdvisor('');
+    }
+  }, [advisor, availableAdvisors, teamLeader]);
 
   const priorWeek = useMemo(() => {
     if (!week || !options.weeks.length) return null;
@@ -58,7 +75,7 @@ export default function Quality() {
   const summaryRows = useMemo(() => {
     const source = teamLeader
       ? records.filter(record => record.teamLeader === teamLeader)
-      : records;
+      : records.filter(record => !!record.teamLeader && !!String(record.teamLeader).trim());
 
     const grouped = new Map<string, QualityRecord[]>();
     for (const record of source) {
@@ -71,13 +88,18 @@ export default function Quality() {
     return [...grouped.entries()].map(([label, rows]) => {
       const currentWeekRows = rows.filter(record => record.weekCommencing === week);
       const priorWeekRows = priorWeek ? rows.filter(record => record.weekCommencing === priorWeek) : [];
-      const currentAverage = average(currentWeekRows.map(record => record.trueScore));
-      const priorAverage = average(priorWeekRows.map(record => record.trueScore));
+      const currentTrueAverage = average(currentWeekRows.map(record => record.trueScore));
+      const currentPotentialAverage = average(currentWeekRows.map(record => record.potentialScore));
+      const priorTrueAverage = average(priorWeekRows.map(record => record.trueScore));
+      const priorPotentialAverage = average(priorWeekRows.map(record => record.potentialScore));
       return {
         label,
-        currentAverage,
-        priorAverage,
-        variance: currentAverage !== null && priorAverage !== null ? currentAverage - priorAverage : null
+        currentTrueAverage,
+        currentPotentialAverage,
+        priorTrueAverage,
+        priorPotentialAverage,
+        varianceTrue: currentTrueAverage !== null && priorTrueAverage !== null ? currentTrueAverage - priorTrueAverage : null,
+        variancePotential: currentPotentialAverage !== null && priorPotentialAverage !== null ? currentPotentialAverage - priorPotentialAverage : null
       };
     }).sort((a, b) => a.label.localeCompare(b.label));
   }, [records, priorWeek, teamLeader, week]);
@@ -89,7 +111,10 @@ export default function Quality() {
       <div className="filters">
         <div className="filter-group">
           <label>Team Leader</label>
-          <select value={teamLeader} onChange={e => setTeamLeader(e.target.value)}>
+          <select value={teamLeader} onChange={e => {
+            setTeamLeader(e.target.value);
+            setAdvisor('');
+          }}>
             <option value="">All Team Leaders</option>
             {options.teamLeaders.map(tl => <option key={tl} value={tl}>{tl}</option>)}
           </select>
@@ -100,6 +125,20 @@ export default function Quality() {
             {options.weeks.map(w => <option key={w} value={w}>{w}</option>)}
           </select>
         </div>
+
+        {teamLeader && (
+          <div className="filter-group">
+            <label>Advisor</label>
+            <select value={advisor} onChange={e => setAdvisor(e.target.value)}>
+              <option value="">All Advisors</option>
+              {availableAdvisors.map(advisorName => <option key={advisorName} value={advisorName}>{advisorName}</option>)}
+            </select>
+          </div>
+        )}
+
+        {(teamLeader || advisor) && (
+          <button type="button" className="btn btn-secondary" onClick={() => { setTeamLeader(''); setAdvisor(''); }}>Clear selection</button>
+        )}
       </div>
 
       <div className="chart-card" style={{ marginBottom: 24 }}>
@@ -128,16 +167,22 @@ export default function Quality() {
                 {teamLeader ? (
                   <>
                     <th>Advisor</th>
-                    <th>Avg Quality Current Week</th>
-                    <th>Avg Quality Prior Week</th>
-                    <th>Quality Variance</th>
+                    <th>Avg True Score Current Week</th>
+                    <th>Avg True Score Prior Week</th>
+                    <th>True Score Variance</th>
+                    <th>Avg Potential Score Current Week</th>
+                    <th>Avg Potential Score Prior Week</th>
+                    <th>Potential Score Variance</th>
                   </>
                 ) : (
                   <>
                     <th>Team Leader</th>
-                    <th>Avg Quality Current Week</th>
-                    <th>Avg Quality Prior Week</th>
-                    <th>Quality Variance</th>
+                    <th>Avg True Score Current Week</th>
+                    <th>Avg True Score Prior Week</th>
+                    <th>True Score Variance</th>
+                    <th>Avg Potential Score Current Week</th>
+                    <th>Avg Potential Score Prior Week</th>
+                    <th>Potential Score Variance</th>
                   </>
                 )}
               </tr>
@@ -145,16 +190,21 @@ export default function Quality() {
             <tbody>
               {summaryRows.length === 0 && (
                 <tr>
-                  <td colSpan={teamLeader ? 4 : 4} className="empty">No quality records</td>
+                  <td colSpan={teamLeader ? 7 : 7} className="empty">No quality records</td>
                 </tr>
               )}
               {summaryRows.map((row, index) => (
                 <tr key={`${row.label}-${index}`}>
                   <td>{row.label}</td>
-                  <td className="text-cyan">{row.currentAverage === null ? '—' : row.currentAverage.toFixed(1)}</td>
-                  <td>{row.priorAverage === null ? '—' : row.priorAverage.toFixed(1)}</td>
-                  <td className={varianceClass(row.variance)}>
-                    {row.variance === null ? '—' : `${row.variance >= 0 ? '+' : ''}${row.variance.toFixed(1)}`}
+                  <td className="text-cyan">{row.currentTrueAverage === null ? '—' : row.currentTrueAverage.toFixed(1)}</td>
+                  <td>{row.priorTrueAverage === null ? '—' : row.priorTrueAverage.toFixed(1)}</td>
+                  <td className={varianceClass(row.varianceTrue)}>
+                    {row.varianceTrue === null ? '—' : `${row.varianceTrue >= 0 ? '+' : ''}${row.varianceTrue.toFixed(1)}`}
+                  </td>
+                  <td className="text-orange">{row.currentPotentialAverage === null ? '—' : row.currentPotentialAverage.toFixed(1)}</td>
+                  <td>{row.priorPotentialAverage === null ? '—' : row.priorPotentialAverage.toFixed(1)}</td>
+                  <td className={varianceClass(row.variancePotential)}>
+                    {row.variancePotential === null ? '—' : `${row.variancePotential >= 0 ? '+' : ''}${row.variancePotential.toFixed(1)}`}
                   </td>
                 </tr>
               ))}

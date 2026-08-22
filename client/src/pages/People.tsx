@@ -19,7 +19,7 @@ function average(values: Array<number | null | undefined>) {
 }
 
 export default function People() {
-  const [view, setView] = useState<'advisors' | 'teamLeaders'>('advisors');
+  const [view, setView] = useState<'advisors' | 'teamLeaders'>('teamLeaders');
   const [advisors, setAdvisors] = useState<Person[]>([]);
   const [leaders, setLeaders] = useState<any[]>([]);
   const [qualityRecords, setQualityRecords] = useState<any[]>([]);
@@ -41,12 +41,15 @@ export default function People() {
       fetchJson('/api/filters/options')
     ])
       .then(([a, t, q, options]) => {
-        setAdvisors(a);
-        setLeaders(t);
-        setQualityRecords(q);
+        const nextAdvisors = Array.isArray(a) ? a : [];
+        const nextLeaders = Array.isArray(t) ? t : [];
+        const nextQuality = Array.isArray(q) ? q : [];
         const nextWeeks = Array.isArray((options as any)?.weeks) ? (options as any).weeks : [];
-        const nextTeamLeaders = Array.isArray((options as any)?.teamLeaders) ? (options as any).teamLeaders : [];
-        setWeeks(nextWeeks.sort());
+        const nextTeamLeaders = Array.isArray((options as any)?.teamLeaders) ? (options as any).teamLeaders.filter((name: string) => name && String(name).trim()) : [];
+        setAdvisors(nextAdvisors);
+        setLeaders(nextLeaders);
+        setQualityRecords(nextQuality);
+        setWeeks(nextWeeks.slice().sort());
         setTeamLeaderOptions(nextTeamLeaders);
         const latestWeek = nextWeeks.length ? nextWeeks[nextWeeks.length - 1] : '';
         setSelectedWeek(latestWeek);
@@ -165,6 +168,20 @@ export default function People() {
               ))}
             </select>
           </div>
+        )}
+
+        {(selectedWeek || selectedTeamLeader || selectedAdvisor) && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              setSelectedWeek(weeks[weeks.length - 1] || '');
+              setSelectedTeamLeader('');
+              setSelectedAdvisor('');
+            }}
+          >
+            Clear selection
+          </button>
         )}
       </div>
 

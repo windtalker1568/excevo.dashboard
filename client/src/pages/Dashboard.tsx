@@ -17,22 +17,52 @@ function formatDateLabel(value: string) {
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function addDays(isoDate: string, days: number) {
+  const date = new Date(`${isoDate}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 export default function Dashboard() {
   const today = new Date().toISOString().slice(0, 10);
   const [filters, setFilters] = useState({ dateFrom: today, dateTo: today, teamLeader: '' });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [teamLeaderOptions, setTeamLeaderOptions] = useState<string[]>([]);
+  const [weeks, setWeeks] = useState<string[]>([]);
+  const [selectedWeek, setSelectedWeek] = useState('');
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchJson('/api/filters/options')
-      .then((options: { teamLeaders?: string[] }) => {
-        setTeamLeaderOptions(options.teamLeaders || []);
+      .then((options: { teamLeaders?: string[]; weeks?: string[] }) => {
+        const nextWeeks = (options.weeks || []).slice().sort();
+        setTeamLeaderOptions((options.teamLeaders || []).filter(Boolean));
+        setWeeks(nextWeeks);
+        if (!selectedWeek && nextWeeks.length) {
+          setSelectedWeek(nextWeeks[nextWeeks.length - 1]);
+        }
       })
-      .catch(() => setTeamLeaderOptions([]));
-  }, []);
+      .catch(() => {
+        setTeamLeaderOptions([]);
+        setWeeks([]);
+      });
+  }, [selectedWeek]);
+
+  useEffect(() => {
+    if (!selectedWeek && weeks.length) {
+      setSelectedWeek(weeks[weeks.length - 1]);
+      return;
+    }
+    if (selectedWeek) {
+      setFilters(prev => ({
+        ...prev,
+        dateFrom: addDays(selectedWeek, -180),
+        dateTo: selectedWeek,
+      }));
+    }
+  }, [selectedWeek, weeks]);
 
   useEffect(() => {
     setLoading(true);
@@ -49,7 +79,7 @@ export default function Dashboard() {
 
   const trendData = useMemo(() => data?.ephSphTrend || [], [data]);
   const qualityTrend = useMemo(() => data?.qualityTrend || [], [data]);
-  const lastUpdatedDate = data?.recentQuality?.[0]?.weekCommencing || today;
+  const lastUpdatedDate = selectedWeek || data?.recentQuality?.[0]?.weekCommencing || today;
   const pipData = useMemo(() => {
     if (!data) return [];
     return [
@@ -61,7 +91,12 @@ export default function Dashboard() {
   return (
     <div>
       <div className="dashboard-header-row">
-        <div className="dashboard-date-pill">Last updated: {formatDateLabel(lastUpdatedDate)}</div>
+        <div className="dashboard-date-panel">
+          <div className="dashboard-date-label">Current week</div>
+          <select className="dashboard-week-select" value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)}>
+            {weeks.map(week => <option key={week} value={week}>{formatDateLabel(week)}</option>)}
+          </select>
+        </div>
         <button
           type="button"
           className="advanced-filter-toggle"
