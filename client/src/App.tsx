@@ -33,19 +33,38 @@ function Layout({ children }: { children: React.ReactNode }) {
     <div className="layout">
       <aside className="sidebar">
         <div className="brand" aria-label="Excevo logo">
-          <div className="brand-mark" aria-hidden="true">
-            <span className="brand-ring ring-one" />
-            <span className="brand-ring ring-two" />
-            <span className="brand-ring ring-three" />
-            <span className="brand-core" />
-            <span className="brand-person" />
-            <span className="brand-stem stem-left" />
-            <span className="brand-stem stem-right" />
-            <span className="brand-dot dot-one" />
-            <span className="brand-dot dot-two" />
-            <span className="brand-dot dot-three" />
-          </div>
-          <span className="brand-wordmark">EXCEVO</span>
+          <svg className="brand-logo" viewBox="0 0 520 120" role="img" aria-label="EXCEVO logo">
+            <defs>
+              <linearGradient id="brandGradient" x1="0%" x2="100%" y1="0%" y2="100%">
+                <stop offset="0%" stopColor="#68d4ff" />
+                <stop offset="55%" stopColor="#5a8df8" />
+                <stop offset="100%" stopColor="#8d5af4" />
+              </linearGradient>
+              <linearGradient id="brandGradientSoft" x1="0%" x2="100%" y1="0%" y2="0%">
+                <stop offset="0%" stopColor="#7dd3fc" />
+                <stop offset="100%" stopColor="#8b5cf6" />
+              </linearGradient>
+            </defs>
+
+            <g transform="translate(0 0)">
+              <circle cx="54" cy="60" r="38" fill="url(#brandGradient)" opacity="0.92" />
+              <circle cx="54" cy="60" r="18" fill="#0f172a" opacity="0.7" />
+              <circle cx="54" cy="60" r="30" fill="none" stroke="url(#brandGradientSoft)" strokeWidth="4" opacity="0.8" />
+              <path d="M42 40 Q54 22 66 40" fill="none" stroke="url(#brandGradientSoft)" strokeWidth="4" strokeLinecap="round" opacity="0.9" />
+              <path d="M42 80 Q54 98 66 80" fill="none" stroke="url(#brandGradientSoft)" strokeWidth="4" strokeLinecap="round" opacity="0.9" />
+              <path d="M30 54 L22 40" stroke="url(#brandGradientSoft)" strokeWidth="5" strokeLinecap="round" />
+              <path d="M30 66 L22 80" stroke="url(#brandGradientSoft)" strokeWidth="5" strokeLinecap="round" />
+              <path d="M78 54 L86 40" stroke="url(#brandGradientSoft)" strokeWidth="5" strokeLinecap="round" />
+              <path d="M78 66 L86 80" stroke="url(#brandGradientSoft)" strokeWidth="5" strokeLinecap="round" />
+              <circle cx="22" cy="40" r="6" fill="#6bd3ff" />
+              <circle cx="22" cy="80" r="6" fill="#8a5ef2" />
+              <circle cx="86" cy="40" r="6" fill="#6bd3ff" />
+              <circle cx="86" cy="80" r="6" fill="#8a5ef2" />
+              <text x="54" y="68" textAnchor="middle" fontSize="34" fontWeight="800" fill="#f8fafc" fontFamily="Arial, Helvetica, sans-serif">E</text>
+            </g>
+
+            <text x="120" y="70" fontSize="58" fontWeight="800" letterSpacing="1.5" fill="#f8fafc" fontFamily="Arial, Helvetica, sans-serif">EXCEVO</text>
+          </svg>
         </div>
         {nav.map(item => (
           <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`} end={item.to === '/'}>
