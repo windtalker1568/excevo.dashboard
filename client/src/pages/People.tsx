@@ -232,9 +232,9 @@ export default function People() {
             <thead>
               <tr>
                 <th>Team Leader</th>
-                <th>Avg Quality Current Week</th>
-                <th>Avg Quality Prior Week</th>
-                <th>Quality Variance</th>
+                <th>Avg True Score Current Week</th>
+                <th>Avg True Score Prior Week</th>
+                <th>True Score Variance</th>
                 <th>Avg EPH</th>
                 <th>Avg SPH</th>
               </tr>
