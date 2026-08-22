@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { fetchJson } from '../api';
 import type { DashboardData } from '../types';
 
-const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4'];
 const PIE_COLORS = ['#ef4444', '#22c55e'];
 
 function formatNumber(n: number | null, digits = 1) {
@@ -50,10 +49,7 @@ export default function Dashboard() {
 
   const trendData = useMemo(() => data?.ephSphTrend || [], [data]);
   const qualityTrend = useMemo(() => data?.qualityTrend || [], [data]);
-  const scoreDist = useMemo(() => {
-    if (!data) return [];
-    return Object.entries(data.scoreDistribution).map(([name, value]) => ({ name, value }));
-  }, [data]);
+  const lastUpdatedDate = data?.recentQuality?.[0]?.weekCommencing || today;
   const pipData = useMemo(() => {
     if (!data) return [];
     return [
@@ -65,7 +61,7 @@ export default function Dashboard() {
   return (
     <div>
       <div className="dashboard-header-row">
-        <div className="dashboard-date-pill">{formatDateLabel(today)}</div>
+        <div className="dashboard-date-pill">Last updated: {formatDateLabel(lastUpdatedDate)}</div>
         <button
           type="button"
           className="advanced-filter-toggle"
@@ -106,7 +102,6 @@ export default function Dashboard() {
             <div className="card"><h3>Total Advisors</h3><div className="value">{data.kpis.totalAdvisors}</div></div>
             <div className="card"><h3>Avg EPH</h3><div className="value text-green">{formatNumber(data.kpis.avgEph)}</div></div>
             <div className="card"><h3>Avg SPH</h3><div className="value text-purple">{formatNumber(data.kpis.avgSph)}</div></div>
-            <div className="card"><h3>Total Quality</h3><div className="value text-cyan">{data.kpis.totalQuality}</div></div>
             <div className="card"><h3>Avg True Score</h3><div className="value text-cyan">{formatNumber(data.kpis.avgTrueScore)}</div></div>
             <div className="card"><h3>Avg Potential Score</h3><div className="value text-orange">{formatNumber(data.kpis.avgPotentialScore)}</div></div>
           </div>
@@ -139,21 +134,6 @@ export default function Dashboard() {
                   <Line type="monotone" dataKey="potentialScore" stroke="#f97316" name="Potential Score" dot={false} />
                   <Legend />
                 </LineChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="chart-card">
-              <h3 className="section-title">Score Distribution</h3>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={scoreDist}>
-                  <CartesianGrid stroke="#374151" strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fill: '#9ca3af' }} />
-                  <YAxis tick={{ fill: '#9ca3af' }} />
-                  <Tooltip contentStyle={{ background: '#111827', border: '1px solid #374151' }} />
-                  <Bar dataKey="value" name="%">
-                    {scoreDist.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                  </Bar>
-                </BarChart>
               </ResponsiveContainer>
             </div>
 
