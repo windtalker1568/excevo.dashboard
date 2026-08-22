@@ -11,11 +11,29 @@ function formatNumber(n: number | null, digits = 1) {
   return n.toFixed(digits);
 }
 
+function formatDateLabel(value: string) {
+  if (!value) return 'Today';
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
 export default function Dashboard() {
-  const [filters, setFilters] = useState({ dateFrom: '', dateTo: '' });
+  const today = new Date().toISOString().slice(0, 10);
+  const [filters, setFilters] = useState({ dateFrom: today, dateTo: today, teamLeader: '' });
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [teamLeaderOptions, setTeamLeaderOptions] = useState<string[]>([]);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchJson('/api/filters/options')
+      .then((options: { teamLeaders?: string[] }) => {
+        setTeamLeaderOptions(options.teamLeaders || []);
+      })
+      .catch(() => setTeamLeaderOptions([]));
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -23,6 +41,7 @@ export default function Dashboard() {
     const params = new URLSearchParams();
     if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
     if (filters.dateTo) params.set('dateTo', filters.dateTo);
+    if (filters.teamLeader) params.set('teamLeader', filters.teamLeader);
     fetchJson(`/api/dashboard?${params.toString()}`)
       .then(setData)
       .catch(e => setError(e.message))
@@ -45,18 +64,38 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h1 className="page-title">Dashboard</h1>
-
-      <div className="filters">
-        <div className="filter-group">
-          <label>Date From</label>
-          <input type="date" value={filters.dateFrom} onChange={e => setFilters({ ...filters, dateFrom: e.target.value })} />
-        </div>
-        <div className="filter-group">
-          <label>Date To</label>
-          <input type="date" value={filters.dateTo} onChange={e => setFilters({ ...filters, dateTo: e.target.value })} />
-        </div>
+      <div className="dashboard-header-row">
+        <div className="dashboard-date-pill">{formatDateLabel(today)}</div>
+        <button
+          type="button"
+          className="advanced-filter-toggle"
+          onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+        >
+          {showAdvancedFilters ? 'Hide advanced filter' : 'Advanced filter'}
+        </button>
       </div>
+
+      {showAdvancedFilters && (
+        <div className="filters advanced-filters-panel">
+          <div className="filter-group">
+            <label>Date From</label>
+            <input type="date" value={filters.dateFrom} onChange={e => setFilters({ ...filters, dateFrom: e.target.value })} />
+          </div>
+          <div className="filter-group">
+            <label>Date To</label>
+            <input type="date" value={filters.dateTo} onChange={e => setFilters({ ...filters, dateTo: e.target.value })} />
+          </div>
+          <div className="filter-group filter-group-wide">
+            <label>By Team Leader</label>
+            <select value={filters.teamLeader} onChange={e => setFilters({ ...filters, teamLeader: e.target.value })}>
+              <option value="">All Team Leaders</option>
+              {teamLeaderOptions.map(teamLeader => (
+                <option key={teamLeader} value={teamLeader}>{teamLeader}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       {loading && <div className="empty">Loading...</div>}
       {error && <div className="empty text-red">{error}</div>}
