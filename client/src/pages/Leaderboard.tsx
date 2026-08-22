@@ -14,10 +14,23 @@ export default function Leaderboard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchJson('/api/quality/weeks').then(setWeeks).catch(() => setWeeks([]));
+    fetchJson('/api/quality/weeks')
+      .then((availableWeeks: string[]) => {
+        const sortedWeeks = [...availableWeeks].sort();
+        setWeeks(sortedWeeks);
+        if (sortedWeeks.length > 0 && !week) {
+          setWeek(sortedWeeks[sortedWeeks.length - 1]);
+        }
+      })
+      .catch(() => setWeeks([]));
   }, []);
 
   useEffect(() => {
+    if (!week && weeks.length > 0) {
+      setWeek(weeks[weeks.length - 1]);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     const params = week ? `?week=${encodeURIComponent(week)}` : '';
@@ -25,7 +38,7 @@ export default function Leaderboard() {
       .then(setData)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [week]);
+  }, [week, weeks]);
 
   return (
     <div>

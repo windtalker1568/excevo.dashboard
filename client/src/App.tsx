@@ -38,22 +38,28 @@ function Layout({ children }: { children: React.ReactNode }) {
             {item.label}
           </NavLink>
         ))}
-        <div className="sidebar-footer">
-          <div className="user-profile">
-            <div className="user-avatar">
-              {user?.name.split(' ').map(n => n[0]).join('')}
-            </div>
-            <div className="user-info">
-              <div className="user-name">{user?.name}</div>
-              <div className="user-email">{user?.email}</div>
-            </div>
-          </div>
-          <button className="logout-btn" onClick={handleLogout}>
-            Sign Out
-          </button>
-        </div>
       </aside>
-      <main className="main">{children}</main>
+
+      <main className="main">
+        <header className="topbar">
+          <div />
+          <div className="topbar-user">
+            <div className="user-profile">
+              <div className="user-avatar">
+                {user?.name.split(' ').map(n => n[0]).join('')}
+              </div>
+              <div className="user-info">
+                <div className="user-name">{user?.name}</div>
+                <div className="user-email">{user?.email}</div>
+              </div>
+            </div>
+            <button className="logout-btn" onClick={handleLogout}>
+              Sign Out
+            </button>
+          </div>
+        </header>
+        {children}
+      </main>
     </div>
   );
 }
