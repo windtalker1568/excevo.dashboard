@@ -38,6 +38,7 @@ function Layout({ children }: { children: React.ReactNode }) {
             <span className="brand-ring ring-two" />
             <span className="brand-ring ring-three" />
             <span className="brand-core" />
+            <span className="brand-person" />
             <span className="brand-stem stem-left" />
             <span className="brand-stem stem-right" />
             <span className="brand-dot dot-one" />
